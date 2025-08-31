@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# filelock-- A flexible file-locking mechanism
+
+retries="10"                    # Default number of retries
+action="lock"                   # Default action
+nullcmd="`which true`"          #  Null command for lockfile
+
+while getopts "lur:" opt; do
+  case $opt in
+    l ) action="lock"       ;;
+    u ) action="unlock"     ;;
+    r ) retries="$OPTARG"   ;;
+  esac
+done
+shift $(( $OPTIND - 1 ))
+
+if [ $# -eq 0 ]; then
+  cat <<EOF >&2
+Usage $0 [-l|-u] [-r retries] LOCKFILE
+Where -l requests a lock
+      -u requets a unlock
+      -r X specfies max number of retries before it fails
+EOF
+  exit 1
+fi
+
+if [ -z "$(which lockfile  | grep -iv 'not found')" ]; then
+  echo "$0 failed: 'lockfile' utility is not found in PATH" >&2
+  exit 1
+fi
+
+if [ "$action" = "lock" ]; then
+  if ! lockfile -l -r "$retries" "$1" 2> /dev/null; then
+    echo "$0: Failed: couldn't create lockfile in tile" >&2
+    exit 1
+  fi
+else    # Action = unlock
+  if [ ! -f "$1" ]; then
+    echo "$0: Warning: lockfile $1 doesn't exists to unlock" >&2
+    exit 1
+  fi
+  rm -f "$1"
+fi
+
+exit 0
+
